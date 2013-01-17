@@ -28,9 +28,11 @@ module = do ->
             fs.writeFile "indices.json", JSON.stringify indices
 
             # csv
-            indices_csv = ""
             for word, value of indices
-              indices_csv = "#{indices_csv}\n#{word},#{value}"
+              if indices_csv
+                indices_csv = "#{indices_csv}\n#{word},#{value}"
+              else
+                indices_csv = "#{word},#{value}"
             fs.writeFile "indices.csv", indices_csv, (err) ->
               console.log "Error: #{err}" if err
 

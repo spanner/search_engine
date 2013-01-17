@@ -1,44 +1,67 @@
 fs = require 'fs'
 BM = require 'benchmark'
+csv = require 'csv'
 
-fs.readFile "indices.json", "utf8", (err, data) ->
-  console.log "Error: #{err}" if err
-  json_data = JSON.parse(data)
-  fs.readFile "indices.csv", "utf8", (err, data) ->
+getCSV = =>
+  fs.readFile "./indices.csv", "utf8", (err, data) =>
     console.log "Error: #{err}" if err
-    csv_data = data
-    
-    suite = new BM.Suite
-    suite.add "searchCSV", ->
-      searchCSV "thought"
-    .add "searchJSON", ->
-      searchJSON "thought"
-    .on 'cycle', (event) ->
-      console.log String(event.target)
-    .on 'complete', () ->
-      console.log 'Fastest is ' + this.filter('fastest').pluck('name')
-    .run
-      'async': true
+    @csv_indices = data
 
+getJSON = =>
+  fs.readFile "./indices.json", "utf8", (err, data) =>
+    console.log "Error: #{err}" if err
+    @json_indices = data
 
-# module = do =>
-searchCSV: (term) ->
-  # console.log "not yet searching", data
-    
-searchJSON: (term) ->
+buildBenchmark = =>
+  @suite = new BM.Suite
+  @suite.add "searchCSV", ->
+    searchCSV "thought"
+  .add "searchJSON", ->
+    searchJSON "thought"
+  .on 'cycle', (event) ->
+    console.log String(event.target)
+  .on 'complete', () ->
+    console.log 'Fastest is ' + this.filter('fastest').pluck('name')
+
+searchCSV = (term) =>
   term = ":#{term}"
-  json_data[term]
-  # console.log indices[term]
+  indices = {}
+  csv().from(@csv_indices).transform (line) =>
+    word = line.splice(0, 1)[0]
+    indices[word] = line
+  .on "end", (count) =>
+    console.log indices[term]
+
+searchJSON = (term) =>
+  term = ":#{term}"
+  indices = JSON.parse @json_indices
+  indices[term]
+
+runBenchmark = =>
+  @suite.run
+    'async': true
+
+setUp = =>
+  getCSV()
+  getJSON()
+  buildBenchmark()
+
+setUp()
 
 
-exports.searchCSV = module.searchCSV
-exports.searchJSON = module.searchJSON
+
+exports.searchCSV = searchCSV
+exports.searchJSON = searchJSON
+exports.runBenchmark = runBenchmark
+exports.setUp = setUp
 
 ###
 
 search = require "./search"
-search.searchJSON ""
-search.searchCSV ""
+search.runBenchmark()
+
+search.searchJSON "thought"
+search.searchCSV "thought"
 
 ###
 
